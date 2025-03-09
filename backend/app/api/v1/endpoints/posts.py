@@ -90,3 +90,73 @@ async def fetch_post(id: int, db: Session = Depends(get_db)):
     logger.info(f"Found post {id}, returning...")
 
     return post
+
+@router.put("/{id}")
+async def update_post(id: int, new_post: CreatePost, db: Session = Depends(get_db)):
+    '''
+    Description: update post by id.
+
+    Args:
+        id (int): post id
+        db (Session): Database session dependency
+        new_post (CreatePost): The updated post's content.
+
+    Return:
+        post (CreatePost): the post found in db
+
+    Exceptions:
+        404: when post is not found in db
+    '''
+    logger.info(f"Updating post id {id}")
+
+    # Search for post in DB, then fetches it in a variable
+    post_query = db.query(Post).filter(Post.id == id)
+    existing_post = post_query.first()
+
+    if existing_post is None:
+        logger.warning(f"Failed to update Post with ID {id}. Not found.")
+        raise HTTPException(status_code=404, detail=f"Post {id} not found.")
+
+    # Update the existing post with new one
+    logger.debug(f"Original post before update: {existing_post.content}")
+    post_query.update(new_post.model_dump(), synchronize_session=False)
+    db.commit()
+    db.refresh(existing_post)
+
+    logger.info(f"Successfully updated post {id}")
+    logger.debug(f"Updated post {id}: {existing_post.content}")
+
+    return existing_post
+
+@router.delete("/{id}", status_code=204)
+async def delete_post(id: int, db: Session = Depends(get_db)):
+    '''
+    Description: delete post
+
+    Args:
+        id (int): post id
+        db (Session): Database session dependency
+
+    Return: True when successfully deleted. Status code 204.
+
+    Exceptions:
+        404: when post is not found in db
+    '''
+    logger.info(f"Deleting post {id}")
+
+    # Search post in DB
+    post_query = db.query(Post).filter(Post.id == id)
+    existing_post = post_query.first()
+
+    if existing_post is None:
+        logger.warning(f"Failed to delete Post with ID {id} Not found.")
+        raise HTTPException(status_code=404, detail=f"Post {id} not found.")
+    
+    # Delete the post
+    logger.debug(f"Post {id} before deletion: {existing_post.title}")
+    post_query.delete(synchronize_session=False)
+    db.commit()
+
+    logger.info(f"Post {id} successfully deleted")
+
+    return True

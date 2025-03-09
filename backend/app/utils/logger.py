@@ -2,6 +2,7 @@
 
 import logging
 import time
+
 from pythonjsonlogger import jsonlogger
 
 def init_logger(name: str):
@@ -19,6 +20,7 @@ def init_logger(name: str):
     # only configure handlers if not already configured to avoid duplicate handlers
     if not logger.handlers:
         logger.setLevel(logging.INFO)
+        # logger.setLevel(logging.DEBUG)
 
         # Create console handler
         console_handler = logging.StreamHandler()
