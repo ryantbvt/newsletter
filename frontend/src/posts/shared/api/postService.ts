@@ -39,4 +39,37 @@ export const postService = {
 
     return response.json();
   },
+  
+  /**
+   * Fetches all posts from the server
+   * 
+   * @returns {Promise<PostResponse[]>} A promise that resolves to an array of posts
+   * @throws {Error} Throws an error if the API request fails
+   */
+  async getPosts(): Promise<PostResponse[]> {
+    const response = await fetch(`${POSTS_ENDPOINT}/`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch posts');
+    }
+    
+    return response.json();
+  },
+  
+  /**
+   * Fetches a single post by its ID
+   * 
+   * @param {number} id - The ID of the post to fetch
+   * @returns {Promise<PostResponse>} A promise that resolves to the post
+   * @throws {Error} Throws an error if the API request fails or post is not found
+   */
+  async getPostById(id: number): Promise<PostResponse> {
+    const response = await fetch(`${POSTS_ENDPOINT}/${id}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch post with ID ${id}`);
+    }
+    
+    return response.json();
+  }
 }; 

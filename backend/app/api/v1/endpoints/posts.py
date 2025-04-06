@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.utils.logger import init_logger
 from app.database.database import get_db
 from app.database.database import Base, engine
-from app.schemas.posts import CreatePost
+from app.schemas.posts import CreatePost, PostResponse
 from app.models.posts import Post
 
 # Initialize logger
@@ -20,7 +20,7 @@ Base.metadata.create_all(bind=engine)
 # Create API router
 router = APIRouter()
 
-@router.get("/", response_model=List[CreatePost])
+@router.get("/", response_model=List[PostResponse])
 async def test_posts(db: Session = Depends(get_db)):
     '''
     Description: Retrives all posts from the database
@@ -38,7 +38,7 @@ async def test_posts(db: Session = Depends(get_db)):
 
     return posts
 
-@router.post("/create")
+@router.post("/create", response_model=PostResponse)
 async def create_post(post: CreatePost, db: Session = Depends(get_db)):
     '''
     Description: Allows post creation
@@ -63,7 +63,7 @@ async def create_post(post: CreatePost, db: Session = Depends(get_db)):
 
     return new_post
 
-@router.get("/{id}", response_model=CreatePost, status_code=200)
+@router.get("/{id}", response_model=PostResponse, status_code=200)
 async def fetch_post(id: int, db: Session = Depends(get_db)):
     '''
     Description: Fetch post by id.
