@@ -5,7 +5,7 @@ export default function HomePage() {
     <main className="min-h-screen flex flex-col items-center justify-center px-4">
       <div className="text-center max-w-2xl">
         <h1 className="font-bold text-5xl mb-8 text-gray-800 tracking-tight">
-          Welcome to <span className="text-emerald-600">Newsletter</span>
+          Welcome to <span className="text-emerald-600">Miso</span>
         </h1>
         <p className="text-xl mb-10 text-gray-600 leading-relaxed">
           Your platform for creating and sharing amazing content. Start your writing journey today.
