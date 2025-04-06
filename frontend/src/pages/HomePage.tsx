@@ -2,8 +2,8 @@ import { Link } from "react-router-dom";
 
 export default function HomePage() {
   return (
-    <main className="absolute inset-0 top-0 flex flex-col items-center justify-center px-4 overflow-hidden">
-      <div className="text-center max-w-2xl mt-16">
+    <main className="min-h-screen flex flex-col items-center justify-center px-4">
+      <div className="text-center max-w-2xl">
         <h1 className="font-bold text-5xl mb-8 text-gray-800 tracking-tight">
           Welcome to <span className="text-emerald-600">Newsletter</span>
         </h1>

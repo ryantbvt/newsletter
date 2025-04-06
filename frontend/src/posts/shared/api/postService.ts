@@ -47,7 +47,7 @@ export const postService = {
    * @throws {Error} Throws an error if the API request fails
    */
   async getPosts(): Promise<PostResponse[]> {
-    const response = await fetch(POSTS_ENDPOINT);
+    const response = await fetch(`${POSTS_ENDPOINT}/`);
     
     if (!response.ok) {
       throw new Error('Failed to fetch posts');
