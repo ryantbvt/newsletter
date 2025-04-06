@@ -18,3 +18,12 @@ class CreatePost(PostBase):
     class Config:
         ''' enabling from_attributes to write/read from sqlalchemy '''
         from_attributes = True
+
+class PostResponse(PostBase):
+    '''
+    Child object of PostBase to read posts.
+    '''
+    id: int
+    class Config:
+        ''' enabling from_attributes to write/read from sqlalchemy '''
+        from_attributes = True
