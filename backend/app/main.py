@@ -22,3 +22,13 @@ app.add_middleware(
 
 # Include routers
 app.include_router(api_router, prefix="/v1")
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
+# Readiness check endpoint
+@app.get("/ready")
+async def readiness_check():
+    return {"status": "ok"}
