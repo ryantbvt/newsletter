@@ -1,6 +1,6 @@
 ''' SQLAlchemy models for Users '''
 
-from sqlalchemy import Column, Integer, String, TIMESTAMP, Enum, text
+from sqlalchemy import Column, Integer, String, TIMESTAMP, Boolean, text
 from sqlalchemy.sql import func
 from sqlalchemy.ext.hybrid import hybrid_property
 import bcrypt
@@ -15,7 +15,7 @@ class User(Base):
     username = Column(String, unique=True, nullable=False)
     email = Column(String, unique=True, nullable=False)
     _password = Column("password", String, nullable=False)
-    role = Column(Enum('admin', 'viewer', name='user_roles'), nullable=False, server_default='viewer')
+    admin = Column(Boolean, nullable=False, server_default=text("false"))
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     last_login = Column(TIMESTAMP(timezone=True), nullable=True)
 

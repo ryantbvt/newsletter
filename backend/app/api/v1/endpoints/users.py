@@ -2,7 +2,7 @@
 
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.utils.logger import init_logger
@@ -10,6 +10,13 @@ from app.database.database import get_db
 from app.database.database import Base, engine
 from app.schemas.users import UserCreate, UserLogin, UserResponse
 from app.models.users import User
+from app.security.auth_handler import (
+    create_access_token, 
+    create_refresh_token, 
+    verify_token,
+    oauth2_scheme
+)
+from app.security.auth_schemas import TokenPayload, TokenResponse
 
 # Initialize logger
 logger = init_logger(__name__)
@@ -20,13 +27,71 @@ Base.metadata.create_all(bind=engine)
 # Create API router
 router = APIRouter()
 
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+    '''
+    Description: Get current user from token
+    
+    Args:
+        token (str): JWT token
+        db (Session): Database session dependency
+        
+    Returns:
+        User: Current user object
+        
+    Raises:
+        HTTPException: If token is invalid or user not found
+    '''
+    try:
+        # Verify token
+        payload = verify_token(token)
+        
+        # Get user from db
+        user = db.query(User).filter(User.id == payload.user_id).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+            
+        return user
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+async def get_current_admin_user(current_user: User = Depends(get_current_user)) -> User:
+    '''
+    Description: Get current admin user
+    
+    Args:
+        current_user (User): Current user object
+        
+    Returns:
+        User: Current admin user object
+        
+    Raises:
+        HTTPException: If user is not admin
+    '''
+    if not current_user.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions"
+        )
+    return current_user
+
 @router.get("/", response_model=List[UserResponse])
-async def get_users_list(db: Session = Depends(get_db)):
+async def get_users_list(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
     '''
     Description: Allows admin to retrieve all users
 
     Args:
         db (Session): Database session dependency
+        current_user (User): Current admin user
 
     Returns:
         users (List[UserResponse]): List of all users in the database
@@ -71,7 +136,7 @@ async def register_user(user: UserCreate, db: Session = Depends(get_db)):
 
     return new_user
 
-@router.post("/login", response_model=UserResponse)
+@router.post("/login", response_model=TokenResponse)
 async def login_user(user: UserLogin, db: Session = Depends(get_db)):
     '''
     Description: Allows user login
@@ -81,7 +146,7 @@ async def login_user(user: UserLogin, db: Session = Depends(get_db)):
         db (Session): Database session dependency
 
     Returns:
-        user (UserResponse): The user that was logged in.
+        token (TokenResponse): Access token and refresh token
     '''
     logger.info("Logging in user.")
     
@@ -98,24 +163,46 @@ async def login_user(user: UserLogin, db: Session = Depends(get_db)):
         logger.error(f"Invalid password for user {user.email}.")
         raise HTTPException(status_code=400, detail="Invalid credentials")
     
-    logger.info(f"User logged in. ID: {db_user.id}")
+    logger.info(f"User password verified. ID: {db_user.id}")
+
+    # Create token payload
+    token_payload = TokenPayload(
+        user_id=str(db_user.id),
+        admin=db_user.admin
+    )
+
+    # Create tokens
+    access_token = create_access_token(token_payload)
+    refresh_token = create_refresh_token(token_payload)
     
-    return db_user
+    logger.info(f"User logged in. ID: {db_user.id}")
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="Bearer"
+    )
     
 @router.post("/logout")
-async def logout_user(db: Session = Depends(get_db)):
+async def logout_user(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     '''
     Description: Allows user logout
     
     Args:
+        current_user (User): Current user object
         db (Session): Database session dependency
 
     Returns:
         message (str): Success message
     '''
-    logger.info("Logging out user.")
+    logger.info(f"Logging out user {current_user.id}.")
     
-    # TODO: Implement logout logic
-
+    # Update last login time
+    current_user.last_login = None
+    db.commit()
+    
     return {"message": "User logged out successfully"}
     

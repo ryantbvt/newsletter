@@ -12,7 +12,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     ''' Schema for creating a new user '''
     password: str = Field(..., min_length=8)
-    role: Optional[str] = 'viewer'
+    admin: Optional[bool] = False
 
 class UserLogin(BaseModel):
     ''' Schema for user login '''
@@ -22,7 +22,7 @@ class UserLogin(BaseModel):
 class UserResponse(UserBase):
     ''' Schema for user response (excluding sensitive data) '''
     id: int
-    role: str
+    admin: bool
     created_at: datetime
     last_login: Optional[datetime]
 
