@@ -24,6 +24,7 @@ class UserResponse(UserBase):
     id: int
     admin: bool
     created_at: datetime
+    refresh_token: Optional[str]
     last_login: Optional[datetime]
 
     class Config:

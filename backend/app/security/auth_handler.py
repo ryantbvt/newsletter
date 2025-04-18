@@ -7,6 +7,7 @@ from jose import jwt
 from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
 
+from app.utils.logger import init_logger
 from app.security.jwt_dependencies import (
     JWT_SECRET_KEY,
     ALGORITHM,
@@ -14,6 +15,9 @@ from app.security.jwt_dependencies import (
     REFRESH_TOKEN_EXPIRE_DAYS
 )
 from app.security.auth_schemas import TokenPayload
+
+# Initialize logger
+logger = init_logger(__name__)
 
 # OAuth2 configuration
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/users/login") # point to login endpoint
@@ -72,12 +76,13 @@ def create_refresh_token(data: TokenPayload) -> str:
     '''
     return create_token(data, timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS), "refresh")
     
-def verify_token(token: str) -> TokenPayload:
+def verify_token(token: str, token_type: Optional[str] = None) -> TokenPayload:
     '''
     Description: Verify and decode JWT token
 
     Args:
         token (str): JWT token to verify
+        token_type (Optional[str]): Expected token type ("access" or "refresh")
     
     Returns:
         TokenPayload: Decoded token payload
@@ -90,9 +95,29 @@ def verify_token(token: str) -> TokenPayload:
             algorithms=[ALGORITHM]
         )
 
+        # Check if token has expired
+        current_time = int(datetime.utcnow().timestamp())
+        if payload.get('exp_time') and current_time > payload.get('exp_time'):
+            logger.error(f"Token has expired. User ID: {payload.get('user_id')}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has expired",
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+
+        # Check token type if specified
+        if token_type and payload.get('token_type') != token_type:
+            logger.error(f"Invalid token type. Expected {token_type}, got {payload.get('token_type')}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Invalid token type. Expected {token_type}",
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+
         return TokenPayload(**payload)
 
     except jwt.JWTError as e:
+        logger.error(f"JWT verification failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",

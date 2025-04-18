@@ -1,6 +1,7 @@
 ''' Users API - CRUD '''
 
 from typing import List
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -75,6 +76,7 @@ async def get_current_admin_user(current_user: User = Depends(get_current_user))
         HTTPException: If user is not admin
     '''
     if not current_user.admin:
+        logger.error(f"User {current_user.id} is not an admin.")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions"
@@ -171,9 +173,20 @@ async def login_user(user: UserLogin, db: Session = Depends(get_db)):
         admin=db_user.admin
     )
 
-    # Create tokens
+    # Check if user has existing refresh token
+    if db_user.refresh_token and verify_token(db_user.refresh_token, token_type="refresh"):
+        refresh_token = db_user.refresh_token
+    else:
+        refresh_token = create_refresh_token(token_payload)
+        db_user.refresh_token = refresh_token
+        db.commit()
+
+    # Create new access token (always create new access token)
     access_token = create_access_token(token_payload)
-    refresh_token = create_refresh_token(token_payload)
+
+    # Update last login time
+    db_user.last_login = datetime.utcnow()
+    db.commit()
     
     logger.info(f"User logged in. ID: {db_user.id}")
 
@@ -200,9 +213,68 @@ async def logout_user(
     '''
     logger.info(f"Logging out user {current_user.id}.")
     
-    # Update last login time
+    # Update user fields
     current_user.last_login = None
+    current_user.refresh_token = None
+
     db.commit()
     
     return {"message": "User logged out successfully"}
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(
+    refresh_token: str,
+    db: Session = Depends(get_db)
+):
+    '''
+    Description: Refresh access token using refresh token
+    
+    Args:
+        refresh_token (str): Refresh token
+        db (Session): Database session dependency
+        
+    Returns:
+        TokenResponse: New access token and refresh token
+    '''
+    logger.info("Refreshing access token")
+    
+    try:
+        # Verify refresh token and ensure it's actually a refresh token
+        payload = verify_token(refresh_token, token_type="refresh")
+        
+        # Get user from db
+        user = db.query(User).filter(User.id == payload.user_id).first()
+        if not user:
+            logger.error(f"User {payload.user_id} not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Create new token payload
+        token_payload = TokenPayload(
+            user_id=str(user.id),
+            admin=user.admin
+        )
+        
+        # Create new tokens
+        new_access_token = create_access_token(token_payload)
+        new_refresh_token = create_refresh_token(token_payload)
+        
+        logger.info(f"Tokens refreshed for user {user.id}")
+        
+        return TokenResponse(
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+            token_type="Bearer"
+        )
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error refreshing token: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not refresh token"
+        )
     
