@@ -1,0 +1,19 @@
+rate_limits:
+  default: "100/minute"
+  auth: "30/minute"
+  health: "60/minute"
+  exclude_paths:
+    - "/health"
+    - "/ready"
+  custom_paths:
+    "/v1/auth/login": "20/minute"
+    "/v1/auth/signup": "10/minute"
+
+cors:
+  allow_origins:
+    - "http://localhost:5173"
+  allow_credentials: true
+  allow_methods:
+    - "*"
+  allow_headers:
+    - "*" 
